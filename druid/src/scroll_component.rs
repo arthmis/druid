@@ -429,6 +429,13 @@ impl ScrollComponent {
                     // if we have just stopped hovering
                     if self.hovered.is_hovered() && !scrollbar_is_hovered {
                         self.hovered = BarHoveredState::None;
+                        // self.reset_scrollbar_fade(|d| ctx.request_timer(d), env);
+                    } else if ctx.is_hot() {
+                        self.opacity = env.get(theme::SCROLLBAR_MAX_OPACITY);
+                        self.timer_id = TimerToken::INVALID; // Cancel any fade out in progress
+                        ctx.request_paint();
+                    // when pointer leaves scroll component viewport then reset scrollbar fade
+                    } else if !ctx.is_hot() {
                         self.reset_scrollbar_fade(|d| ctx.request_timer(d), env);
                     }
                 }
@@ -486,9 +493,17 @@ impl ScrollComponent {
     ///
     /// Make sure to call on every lifecycle event
     pub fn lifecycle(&mut self, ctx: &mut LifeCycleCtx, event: &LifeCycle, env: &Env) {
-        if let LifeCycle::Size(_) = event {
-            // Show the scrollbars any time our size changes
-            self.reset_scrollbar_fade(|d| ctx.request_timer(d), &env);
+        match event {
+            LifeCycle::Size(_) => {
+                // Show the scrollbars any time our size changes
+                self.reset_scrollbar_fade(|d| ctx.request_timer(d), &env);
+            }
+            LifeCycle::HotChanged(_) => {
+                // when the mouse leaves the window from scroll, scrollbar should fade
+                self.hovered = BarHoveredState::None;
+                self.reset_scrollbar_fade(|d| ctx.request_timer(d), env);
+            }
+            _ => (),
         }
     }
 }
